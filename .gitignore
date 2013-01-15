@@ -1,7 +1,11 @@
-*.pyc
+*.py[co]
 *.egg-info
 .tox
 build/
 docs/_build/
 dist/
 .DS_Store
+/bin
+/include
+/lib
+.Python
