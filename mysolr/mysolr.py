@@ -351,7 +351,8 @@ class Cursor(object):
             self.query['start'] += self.query['rows']
 
 
-def _get_add_xml(array_of_hash, overwrite=True):
+def _get_add_xml(array_of_hash, overwrite=True, commit_within=None,
+                 boost_values=None):
     """ Creates add XML message to send to Solr based on the array of hashes
     (documents) provided.
 
@@ -359,19 +360,34 @@ def _get_add_xml(array_of_hash, overwrite=True):
                       with the same uniqueKey (default is True)
 
     """
-    xml = '<add overwrite="%s">' % ('true' if overwrite else 'false')
+    xml = '<add overwrite="%s"' % ('true' if overwrite else 'false')
+    if commit_within:
+        xml += ' commitWithin="%s"' % (commit_within)
+    xml += '>'
+
+    def add_field_xml(doc, key, value):
+        if isinstance(value, get_basestring()):
+            value = escape(value)
+        if key in boost_values:
+            boost = ' boost="%s"' % boost_values[key]
+        else:
+            boost = ''
+        doc += '<field name="%s"%s>%s</field>' % (key, boost, value)
+        return doc
+
     for doc_hash in array_of_hash:
-        doc = '<doc>'
+        if boost_values is None:
+           boost_values = {}
+        if '' in boost_values:      # boost value for the entire document
+            doc = '<doc boost="%s">' % boost_values['']
+        else:
+            doc = '<doc>'
         for key, value in doc_hash.items():
             if isinstance(value, list):
                 for v in value:
-                    if isinstance(v, get_basestring()):
-                        v = escape(v)
-                    doc += '<field name="%s">%s</field>' % (key, v)
+                    doc = add_field_xml(doc, key, v)
             else:
-                if isinstance(value, get_basestring()):
-                    value = escape(value)
-                doc += '<field name="%s">%s</field>' % (key, value)
+                doc = add_field_xml(doc, key, value)
         doc += '</doc>'
         xml += doc
     xml += '</add>'
